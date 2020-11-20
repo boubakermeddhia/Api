@@ -30,14 +30,14 @@ def home():
 
 
 @app.route("/", methods=['GET', 'POST'])
-@app.route("/scrape", methods=['GET', 'POST'])
+@app.route("/grabjob", methods=['GET', 'POST'])
 def save():
-    form = ScrapeForm()
-    s=0
-    if request.method=="POST":
+    if request.method=="GET":
         global domains
-        domains=form.domain.data
-        for i in range(0,5):
+        json_data = request.args
+        nbr=int(json_data['nbr'])
+        domain=str(json_data['domain'])
+        for i in range(0,nbr):
             if i==0:
                 r = requests.get('https://www.indeed.com/jobs?q='+str(domains))
             else:
@@ -107,7 +107,6 @@ def save():
                    
         flash('Scrape is finished '+str(s)+' new added in '+str(domains)+' feed', 'success')
         return redirect(url_for('home',page=1,domain=domains))
-    return render_template('scrape.html', form=form)
 
 
 @app.route("/deljob/<int:n>", methods=['GET', 'POST'])
