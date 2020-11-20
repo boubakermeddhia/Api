@@ -1,28 +1,33 @@
 import os
-from flask import render_template, url_for, flash, redirect, request, abort
+from flask import render_template, url_for, flash, redirect, request, abort,jsonify
 from scrape import app,db
 from scrape.forms import ScrapeForm
 from scrape.models import data
 import requests
 from bs4 import BeautifulSoup
-from rq import Queue
-from scrape.worker import conn
-from utils import count_words_at_url
 
-
+domains=''
 
 def tohtml(x):
     return "<html>\n<head></head>\n<body>\n"+str(x)+"</html>"
 
-@app.route("/home")
+@app.route("/getjobs",methods=['GET', 'POST'])
 def home():
-    page = request.args.get('page', 1, type=int)
-    posts = data.query.order_by(data.id.desc()).paginate(page=page, per_page=5)
-    return render_template('home.html', posts=posts)
+    if request.method=="GET":
+        json_data = request.args
+        page=int(json_data['page'])
+        domain=str(json_data['domain'])
+        if len(domain)!=0:
+            posts = data.query.filter(data.domain==domain).paginate(page=page, per_page=5)
+        else:   
+            posts = data.query.order_by(data.id.desc()).paginate(page=page, per_page=5)
+        l=[]
+        for post in posts.items:
+            l.append({'sys':post.id,'post_name': post.post_name.replace('\n',''),'href_company': post.href_company.replace('\n',''),
+            'name_company':post.name_company.replace('\n',''),'location':post.location.replace('\n',''),'salary':post.salary.replace('\n',''),
+            'href_post':post.href_post.replace('\n','')})
+        return jsonify(l)
 
-@app.route("/about")
-def about():
-    return render_template('about.html')
 
 @app.route("/", methods=['GET', 'POST'])
 @app.route("/scrape", methods=['GET', 'POST'])
@@ -30,13 +35,14 @@ def save():
     form = ScrapeForm()
     s=0
     if request.method=="POST":
-        q = Queue(connection=conn)
+        global domains
         domains=form.domain.data
         for i in range(0,5):
             if i==0:
-                r = q.enqueue(count_words_at_url,'https://www.indeed.com/jobs?q='+str(domains))
+                r = requests.get('https://www.indeed.com/jobs?q='+str(domains))
             else:
-                r = q.enqueue(count_words_at_url, 'https://www.indeed.com/jobs?q='+str(domains)+'&start='+str(i*10))
+                r = requests.get('https://www.indeed.com/jobs?q='+str(domains)+'&start='+str(i*10))
+                
             soup = BeautifulSoup(r.text,'html.parser')
             x=soup.find_all("div", class_="jobsearch-SerpJobCard unifiedRow row result")
             if len(x)==0:
@@ -92,7 +98,7 @@ def save():
                     f=''
                     
                 try:
-                    donnee=data(post_name=str(a),href_post=str(b),name_company=str(c),href_company=str(m),location=str(e),salary=str(f),verif=str(v))
+                    donnee=data(domain=str(domains),post_name=str(a),href_post=str(b),name_company=str(c),href_company=str(m),location=str(e),salary=str(f),verif=str(v))
                     db.session.add(donnee)
                     db.session.commit()
                     s=s+1
@@ -100,6 +106,14 @@ def save():
                     pass
                    
         flash('Scrape is finished '+str(s)+' new added in '+str(domains)+' feed', 'success')
-        return redirect(url_for('home'))
+        return redirect(url_for('home',page=1,domain=domains))
     return render_template('scrape.html', form=form)
+
+
+@app.route("/deljob/<int:n>", methods=['GET', 'POST'])
+def deljob(n):
+    posts = data.query.filter(data.id==n).delete()
+    db.session.commit()
+    return redirect(url_for('home',page=1,domain=domains))
+
 

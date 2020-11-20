@@ -4,6 +4,7 @@ from scrape import db
 
 class data(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    domain=db.Column(db.String(120))
     post_name = db.Column(db.String(120))
     href_post = db.Column(db.String(120))
     name_company = db.Column(db.String(120))
