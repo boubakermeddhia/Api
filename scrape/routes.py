@@ -18,9 +18,9 @@ def home():
         page=int(json_data['page'])
         domain=str(json_data['domain'])
         if len(domain)!=0:
-            posts = data.query.filter(data.domain==domain).paginate(page=page, per_page=5)
+            posts = data.query.filter(data.domain==domain).paginate(page=page, per_page=3)
         else:   
-            posts = data.query.order_by(data.id.desc()).paginate(page=page, per_page=5)
+            posts = data.query.order_by(data.id.desc()).paginate(page=page, per_page=3)
         l=[]
         for post in posts.items:
             l.append({'sys':post.id,'post_name': post.post_name.replace('\n',''),'href_company': post.href_company.replace('\n',''),
@@ -36,7 +36,8 @@ def save():
         global domains
         json_data = request.args
         nbr=int(json_data['nbr'])
-        domain=str(json_data['domain'])
+        domains=str(json_data['domain'])
+        s=0
         for i in range(0,nbr):
             if i==0:
                 r = requests.get('https://www.indeed.com/jobs?q='+str(domains))
@@ -103,7 +104,7 @@ def save():
                     db.session.commit()
                     s=s+1
                 except:
-                    pass
+                    s=0
                    
         flash('Scrape is finished '+str(s)+' new added in '+str(domains)+' feed', 'success')
         return redirect(url_for('home',page=1,domain=domains))
