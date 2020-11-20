@@ -111,7 +111,7 @@ def save():
 
 
 @app.route("/deljob/<int:n>", methods=['GET', 'POST'])
-def deljob():
+def deljob(n):
     posts = data.query.filter(data.id==n).delete()
     db.session.commit()
     return redirect(url_for('home',page=1,domain=domains))
